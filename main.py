@@ -1,7 +1,6 @@
 from argparse import ArgumentParser
 from glob import glob
 import json
-from operator import itemgetter
 from os.path import join as path_join
 from urllib.parse import unquote
 
@@ -90,6 +89,7 @@ def js():
         songs: let = jq("#songs")
         template: let = jq("#template")
         page: let = jq("#page")
+        preview: let = jq("#preview")
         min_page = 1
         max_page = 1
 
@@ -112,6 +112,10 @@ def js():
             if next_page <= max_page:
                 page.val(next_page)
             jq("#controls").change()
+
+        def preview_ended(evt):
+            jq("#songs td.preview a").text("▶").removeClass("playing")
+        jq("#preview").on("ended", preview_ended)
 
         @jq("#controls").change
         def update(evt):
@@ -157,19 +161,26 @@ def js():
                     page.val(max_page)
 
                 @jq("#songs td.preview a").click
-                def open_preview(evt):
+                def toggle_preview(evt):
                     evt.preventDefault()
-                    preview: let = jq("#preview")
-                    track_id: let = jq(this).data("track-id")
+                    link: let = jq(this)
+                    document.getElementById("preview").pause()
+                    jq("#songs td.preview a").text("▶")
+                    if link.hasClass("playing"):
+                        link.removeClass("playing")
+                    else:
+                        track_id: let = link.data("track-id")
 
-                    def previewSuccess(data):
-                        pass
+                        def previewSuccess(data):
+                            preview.attr("src", data["preview_url"])
+                            link.text("⏸︎")
+                            link.addClass("playing")
 
-                    jq.ajax({
-                        "url": "/preview_url",
-                        "data": {"track_id": track_id},
-                        success: previewSuccess,
-                    })
+                        jq.ajax({
+                            "url": "/preview_url",
+                            "data": {"track_id": track_id},
+                            success: previewSuccess,
+                        })
                     return False
 
             jq.ajax({
@@ -296,7 +307,7 @@ class MusicController(Controller):
     @inject_header(('Content-Type', 'application/json'))
     def json(self, request):
         form = FilterForm(request.GET)
-        sort_key = itemgetter("song")
+        sort_key = lambda song: song["song"].upper()
         reverse = False
         page = 1
         if form.is_valid():
