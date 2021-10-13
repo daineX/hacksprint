@@ -4,7 +4,7 @@ import json
 from operator import itemgetter
 from os.path import join as path_join
 
-from pyttp.css import AugmentingRule, Rule, Ruleset
+from pyttp import css as c
 from pyttp.form import Field, Form, TextField
 from pyttp.controller import (
     Controller,
@@ -38,16 +38,38 @@ SORTABLE_FIELDS = (
 DISPLAYED_FIELDS = SEARCHABLE_FIELDS + SORTABLE_FIELDS
 
 def css():
-    return reset + Ruleset(
-        Rule("body", padding="10px"),
-        Rule(".hidden", display="none"),
-        Rule(".header", margin_bottom="15px", margin_left="10px", sub_rules=[
-            Rule("button", margin_left="20px", sub_rules=[
-                AugmentingRule("#next", margin_left="0px"),
-            ]),
-        ]),
-        Rule("td, th", padding_left="10px", text_align="left"),
-        Rule("input.sort", width="50px"),
+    return reset + c.rs(
+        c.r("body",
+            c.ds(
+                 padding="10px", font_family="arial, sans-serif"),
+            c.r(".hidden", display="none"),
+            c.r(".header",
+                c.ds(margin_bottom="15px", margin_left="10px"),
+                c.r("button",
+                    c.ds(margin_left="20px"),
+                    c.ar("#next", margin_left="0px"),
+                ),
+            ),
+            c.r("tr",
+                c.ar(".even", background_color="#f0f0f0"),
+                c.ar(".odd", background_color="#c0c0c0"),
+                c.r("td, th",
+                    c.ds(
+                        padding="10px",
+                        text_align="left",
+                        white_space="nowrap",
+                        text_overflow="ellipsis",
+                        overflow="hidden",
+                    ),
+                    c.ar(
+                        ".album, .artist, .song",
+                        width="200px",
+                        max_width="200px"),
+                ),
+                c.r("th", font_weight="bold"),
+            ),
+            c.r("input.sort", width="50px"),
+        )
     )
 
 
@@ -89,13 +111,19 @@ def js():
 
             def ajaxSuccess(data):
                 songs.empty()
+                idx: let = 0
                 for song in data["songs"]:
                     row = template.clone()
                     for field in fields:
                         row.find("." + field).text(song[field])
                     row.removeClass("hidden")
                     row.removeAttr("id")
+                    if idx % 2 == 0:
+                        row.addClass("even")
+                    else:
+                        row.addClass("odd")
                     row.appendTo(songs)
+                    idx += 1
                 max_page = data["max_page"]
                 page.attr("max", max_page)
                 if page.val() > max_page:
@@ -286,13 +314,13 @@ class MusicController(Controller):
     @inject_header(('Content-Type', 'text/css'))
     def css_src(self, request):
         if self.css is None:
-            self.css = str(css())
+            self.css = css().format(pretty=True)
         return ControllerResponse(self.css)
 
 def get_args():
     parser = ArgumentParser()
     parser.add_argument("--data-dir", default="data/", required=False)
-    parser.add_argument("--songs-per-page", default=50, required=False)
+    parser.add_argument("--songs-per-page", default=20, required=False)
     parser.add_argument("--threads", default=20, required=False)
     args, _ = parser.parse_known_args()
     return args
