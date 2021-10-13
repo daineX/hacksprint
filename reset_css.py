@@ -1,0 +1,171 @@
+from pyttp.css import r, rs
+
+BASE_ELEMENTS = [
+    "html", "body", "div", "span", "applet", "object", "iframe",
+    "h1", "h2", "h3", "h4", "h5", "h6", "p", "blockquote", "pre",
+    "a", "abbr", "acronym", "address", "big", "cite", "code",
+    "del", "dfn", "em", "img", "ins", "kbd", "q", "s", "samp",
+    "small", "strike", "strong", "sub", "sup", "tt", "var",
+    "b", "u", "i", "center",  "dl", "dt", "dd", "ol", "ul", "li",
+    "fieldset", "form", "label", "legend", "table", "caption",
+    "tbody", "tfoot", "thead", "tr", "th", "td", "article", "aside",
+    "canvas", "details", "embed", "figure", "figcaption", "footer",
+    "header", "hgroup", "menu", "nav", "output", "ruby", "section",
+    "summary", "time", "mark", "audio", "video",
+]
+
+BLOCK_ELEMENTS = [
+    "article", "aside", "details", "figcaption", "figure",
+    "footer", "header", "hgroup", "menu", "nav", "section",
+]
+
+base_rule = r("",
+    margin=0,
+    padding=0,
+    border=0,
+    font_size="100%",
+    font="inherit",
+    vertical_align="baseline",
+)
+
+reset = rs()
+for element in BASE_ELEMENTS:
+    reset += base_rule.copy(element)
+
+for element in BLOCK_ELEMENTS:
+    reset += r(element, display="block")
+
+reset += rs(
+    r(":focus", outline=0),
+    r("body", line_height=1),
+    r("ol, ul", line_style="none"),
+    r("blockquote, q", quotes="none"),
+    r("blockquote:before, blockquote:after, q:before, q:after",
+        content="none",
+    ),
+    r("""
+        input[type="search"]::-webkit-search-cancel-button,
+        input[type="search"]::-webkit-search-decoration,
+        input[type="search"]::-webkit-search-results-button,
+        input[type="search"]::-webkit-search-results-decoration""",
+        _webkit_appearance="none",
+        _moz_appearance="none",
+    ),
+    r("input[type=search]",
+        _webkit_appearance="none",
+        _moz_appearance="none",
+        _webkit_box_sizing="content_box",
+        _moz_box_sizing="content-box",
+        box_sizing="content-box",
+    ),
+    r("textarea",
+        overflow="auto",
+        vertical_align="top",
+        resize="vertical",
+    ),
+    r("audio, canvas, video",
+        display="inline_block",
+        max_width="100%",
+        extra_declarations={
+            "*display": "inline",
+            "*zoom": 1,
+        }
+    ),
+    r("audio:not([controls])",
+        display="none",
+        height=0,
+    ),
+    r("[hidden]", display="none"),
+    r("html",
+        font_size="100%",
+        _webkit_text_size_adjust="100%",
+        _ms_text_size_adjust="100%",
+    ),
+    r("a:focus", outline="thin dotted"),
+    r("a:active, a:hover", outline=0),
+    r("img",
+        border=0,
+        _ms_interpolation_mode="bicubic",
+    ),
+    r("figure", margin=0),
+    r("form", margin=0),
+    r("fieldset",
+        border="1px solid #c0c0c0",
+        margin="0 2px",
+        padding="0.35em 0.625em 0.75em",
+    ),
+    r("legend",
+        border=0,
+        padding=0,
+        white_space="normal",
+        extra_declarations={
+            "*margin_left": "-7px",
+        },
+    ),
+    r("button, input, select, textarea",
+        font_size="100%",
+        margin=0,
+        vertical_align="baseline",
+        extra_declarations={
+            "*vertical_align": "middle",
+        }
+    ),
+    r("button, input", line_height="normal"),
+    r("button, select", text_transform="none"),
+    r('html input[type="button"], input[type="reset"], input[type="submit"]',
+        _webkit_appearance="button",
+        cursor="pointer",
+        extra_declarations={
+            "*overflow": "visible",
+        }
+    ),
+    r("button[disabled], html input[disabled]", cursor="default"),
+    r('input[type="checkbox"], input[type="radio"]',
+        box_sizing="border-box",
+        padding=0,
+        extra_declarations={
+            "*height": "13px",
+            "*width": "13px",
+        }
+    ),
+    r('input[type="search"]',
+        _webkit_appearance="textfield",
+        _moz_box_sizing="content-box",
+        _webkit_box_sizing="content-box",
+        box_sizing="content-box",
+    ),
+    r('input[type="search"]::-webkit-search-cancel-button, input[type="search"]::-webkit-search-decoration',
+        _webkit_appearance="none",
+    ),
+    r("button::-moz-inner-focus, input::moz-inner-focus",
+        border=0,
+        padding=0,
+    ),
+    r("textarea", overflow="auto", vertical_align="top"),
+    r("table", border_collapse="collapse", border_spacing=0),
+    r("html, button, input, select, textarea", color="#222"),
+    r("::-moz-selection",
+        background="#b3d4fc",
+        text_shadow="none",
+    ),
+    r("::selection",
+        background="#b3d4fc",
+        text_shadow="none",
+    ),
+    r("img", vertical_align="middle"),
+    r("fieldset",
+        border=0,
+        margin=0,
+        padding=0,
+    ),
+    r("textarea", resize="vertical"),
+    r(".chromeframe",
+        margin="0.2em 0",
+        background="#ccc",
+        color="#000",
+        padding="0.2em 0"
+    ),
+)
+
+if __name__ == "__main__":
+    print(reset)

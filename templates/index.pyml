@@ -1,0 +1,40 @@
+-!!!
+%html
+  %head
+    %meta(charset:"UTF-8")
+    %link(rel:"stylesheet" href:"/css_src")
+    %title SpotEx
+
+  %body
+    %form#controls(action:"/json")
+      .header
+        ==form.search.render
+        %button#prev Previous
+        ==form.page.render
+        %button#next Next
+        %button#reset Reset
+      %table
+        %thead
+          %tr#theader
+            -for name in searchable_fields
+              %th
+                =name.capitalize
+            -for field in sortable_fields
+              %th
+                =field.name.capitalize
+                %br
+                ==field.render
+        %tbody#songs!
+
+    %table.hidden
+      %tr#template
+        -for name in searchable_fields
+          %td(class:"=name")!
+        -for field in sortable_fields
+          %td(class:"=field.name")!
+
+
+    %script(src:"/static/vendor/jquery-3.6.0.min.js")!
+    %script(src:"/js_src")!
+    %script
+      js().setup(jQuery)
