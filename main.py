@@ -3,6 +3,10 @@ from glob import glob
 import json
 from operator import itemgetter
 from os.path import join as path_join
+from urllib.parse import unquote
+
+import requests
+from bs4 import BeautifulSoup
 
 from pyttp import css as c
 from pyttp.form import Field, Form, TextField
@@ -51,8 +55,8 @@ def css():
                 ),
             ),
             c.r("tr",
-                c.ar(".even", background_color="#f0f0f0"),
-                c.ar(".odd", background_color="#c0c0c0"),
+                c.ar(".even", background_color="hsl(210, 80%, 80%)"),
+                c.ar(".odd", background_color="hsl(210, 80%, 90%)"),
                 c.r("td, th",
                     c.ds(
                         padding="10px",
@@ -65,6 +69,9 @@ def css():
                         ".album, .artist, .song",
                         width="200px",
                         max_width="200px"),
+                    c.ar(".preview",
+                         c.r("a", text_decoration="none", color="black"),
+                    ),
                 ),
                 c.r("th", font_weight="bold"),
             ),
@@ -72,6 +79,9 @@ def css():
         )
     )
 
+def time_to_int(value):
+    minutes, seconds = value.split(":")
+    return int(minutes) * 60 + int(seconds)
 
 def js():
     exports = {}
@@ -109,13 +119,30 @@ def js():
             form: let = jq(this)
             url: let = form.prop("action")
 
+            def scale_value(field, value, target):
+                scaling_factor = 100
+                if field == 'time':
+                    value = time_to_int(value)
+                    scaling_factor = max_time
+                elif field == 'tempo':
+                    scaling_factor = max_tempo
+                return value * target / scaling_factor
+
             def ajaxSuccess(data):
                 songs.empty()
                 idx: let = 0
                 for song in data["songs"]:
                     row = template.clone()
-                    for field in fields:
-                        row.find("." + field).text(song[field])
+                    for field in displayed_fields:
+                        value: let = song[field]
+                        field_elem = row.find("." + field)
+                        field_elem.text(value)
+                        field_elem.attr("title", value)
+                        if sortable_fields.includes(field):
+                            scaled_value: let = scale_value(field, value, 20)
+                            field_elem.css("background-color",
+                                        f"hsl(210, 80%, {100 - scaled_value}%)")
+                    row.find(".preview a").data("track-id", song["spotify_track_id"])
                     row.removeClass("hidden")
                     row.removeAttr("id")
                     if idx % 2 == 0:
@@ -129,13 +156,28 @@ def js():
                 if page.val() > max_page:
                     page.val(max_page)
 
+                @jq("#songs td.preview a").click
+                def open_preview(evt):
+                    evt.preventDefault()
+                    preview: let = jq("#preview")
+                    track_id: let = jq(this).data("track-id")
+
+                    def previewSuccess(data):
+                        pass
+
+                    jq.ajax({
+                        "url": "/preview_url",
+                        "data": {"track_id": track_id},
+                        success: previewSuccess,
+                    })
+                    return False
+
             jq.ajax({
                 "url": url,
                 "dataType": "json",
                 "data": form.serializeArray(),
                 "success": ajaxSuccess,
             })
-            form.serialize()
             return False
 
         @jq("#controls").submit
@@ -230,14 +272,10 @@ class MusicController(Controller):
             'time': self.time_to_percent,
         }
         self.max_tempo = max(song["tempo"] for song in self.data)
-        self.max_time = max(self.time_to_int(song["time"]) for song in self.data)
-
-    def time_to_int(self, value):
-        minutes, seconds = value.split(":")
-        return int(minutes) * 60 + int(seconds)
+        self.max_time = max(time_to_int(song["time"]) for song in self.data)
 
     def time_to_percent(self, value):
-        return self.time_to_int(value) * 100 // self.max_time
+        return time_to_int(value) * 100 // self.max_time
 
     def tempo_to_percent(self, value):
         return value * 100 // self.max_tempo
@@ -298,6 +336,7 @@ class MusicController(Controller):
             form=form,
             searchable_fields=SEARCHABLE_FIELDS,
             sortable_fields=sortable_fields,
+            displayed_fields=DISPLAYED_FIELDS,
         )
         return TemplateResponse("templates/index.pyml", context=context)
 
@@ -305,8 +344,13 @@ class MusicController(Controller):
     @inject_header(('Content-Type', 'application/javascript'))
     def js_src(self, request):
         if self.js is None:
-            context = dict(fields=DISPLAYED_FIELDS)
-            self.js = toJS(js, context=context)
+            context = dict(
+                max_tempo=self.max_tempo,
+                max_time=self.max_time,
+                displayed_fields=DISPLAYED_FIELDS,
+                sortable_fields=SORTABLE_FIELDS,
+            )
+            self.js = toJS(js, time_to_int, context=context)
 
         return ControllerResponse(self.js)
 
@@ -316,6 +360,16 @@ class MusicController(Controller):
         if self.css is None:
             self.css = css().format(pretty=True)
         return ControllerResponse(self.css)
+
+    @expose
+    @inject_header(('Content-Type', 'application/json'))
+    @validate(track_id=str)
+    def preview_url(self, request, track_id):
+        r = requests.get(f"https://open.spotify.com/embed/track/{track_id}")
+        dom = BeautifulSoup(r.content, features="html.parser")
+        preview_url = json.loads(unquote(dom.find(id="resource").text))["preview_url"]
+        return ControllerResponse(json.dumps({"preview_url": preview_url}))
+
 
 def get_args():
     parser = ArgumentParser()
