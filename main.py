@@ -67,7 +67,9 @@ def css():
                     c.ar(
                         ".album, .artist, .song",
                         width="200px",
-                        max_width="200px"),
+                        max_width="200px",
+                        cursor="pointer",
+                    ),
                     c.ar(".preview",
                          c.r("a", text_decoration="none", color="black"),
                     ),
@@ -86,6 +88,8 @@ def js():
     exports = {}
 
     def setup(jq):
+        search: let = jq("#search")
+        controls: let = jq("#controls")
         songs: let = jq("#songs")
         template: let = jq("#template")
         page: let = jq("#page")
@@ -96,28 +100,29 @@ def js():
         @jq("#reset").click
         def reset():
             jq(".sort").val(0)
-            jq("#page").val(1)
-            jq("#controls").change()
+            page.val(1)
+            search.val("")
+            controls.change()
 
         @jq("#prev").click
         def previous():
             previous_page: let = int(page.val()) - 1
             if previous_page >= min_page:
                 page.val(previous_page)
-            jq("#controls").change()
+            controls.change()
 
         @jq("#next").click
         def next():
             next_page: let = int(page.val()) + 1
             if next_page <= max_page:
                 page.val(next_page)
-            jq("#controls").change()
+            controls.change()
 
         def preview_ended(evt):
             jq("#songs td.preview a").text("▶").removeClass("playing")
         jq("#preview").on("ended", preview_ended)
 
-        @jq("#controls").change
+        @controls.change
         def update(evt):
             evt.preventDefault()
             form: let = jq(this)
@@ -183,6 +188,12 @@ def js():
                         })
                     return False
 
+                @jq("td.album, td.artist, td.song").click
+                def search_shortcut():
+                    search_text: let = jq(this).text()
+                    search.val(search_text)
+                    controls.change()
+
             jq.ajax({
                 "url": url,
                 "dataType": "json",
@@ -191,12 +202,12 @@ def js():
             })
             return False
 
-        @jq("#controls").submit
+        @controls.submit
         def submit(evt):
             evt.preventDefault()
             return False
 
-        jq("#controls").change()
+        controls.change()
 
     exports.setup = setup
     return exports
