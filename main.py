@@ -93,7 +93,7 @@ def js():
         songs: let = jq("#songs")
         template: let = jq("#template")
         page: let = jq("#page")
-        preview: let = jq("#preview")
+        preview: let = document.getElementById("preview")
         min_page = 1
         max_page = 1
 
@@ -127,6 +127,8 @@ def js():
             evt.preventDefault()
             form: let = jq(this)
             url: let = form.prop("action")
+
+            preview.pause()
 
             def scale_value(field, value, target):
                 scaling_factor = 100
@@ -169,7 +171,7 @@ def js():
                 def toggle_preview(evt):
                     evt.preventDefault()
                     link: let = jq(this)
-                    document.getElementById("preview").pause()
+                    preview.pause()
                     jq("#songs td.preview a").text("▶")
                     if link.hasClass("playing"):
                         link.removeClass("playing")
@@ -177,7 +179,8 @@ def js():
                         track_id: let = link.data("track-id")
 
                         def previewSuccess(data):
-                            preview.attr("src", data["preview_url"])
+                            preview.setAttribute("src", data["preview_url"])
+                            preview.volume = 0.6
                             link.text("⏸︎")
                             link.addClass("playing")
 

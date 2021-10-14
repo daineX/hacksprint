@@ -35,7 +35,7 @@
           %td(class:"=name")!
         -for field in sortable_fields
           %td(class:"=field.name")!
-    %audio#preview.hidden(autoplay:"")
+    %audio#preview.hidden(autoplay:"")!
 
     %script(src:"/static/vendor/jquery-3.6.0.min.js")!
     %script(src:"/js_src")!
