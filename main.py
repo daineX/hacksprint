@@ -1,11 +1,10 @@
 from argparse import ArgumentParser
 from glob import glob
 import json
+from html.parser import HTMLParser
 from os.path import join as path_join
 from urllib.parse import unquote
-
-import requests
-from bs4 import BeautifulSoup
+from urllib.request import urlopen
 
 from pyttp import css as c
 from pyttp.form import Field, Form, TextField
@@ -226,6 +225,24 @@ def load_data(data_dir):
     return data
 
 
+class SpotifyResourceParser(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.resource = ""
+        self.tag_found = False
+
+    def handle_starttag(self, tag, attrs):
+        dict_attrs = dict(attrs)
+        if tag == "script" and dict_attrs.get("id") == "resource":
+            self.tag_found = True
+        else:
+            self.tag_found = False
+
+    def handle_data(self, data):
+        if self.tag_found and data.strip():
+            self.resource = data
+
+
 class SortDirectionField(Field):
     def render(self):
         return f'''
@@ -390,9 +407,11 @@ class MusicController(Controller):
     @inject_header(('Content-Type', 'application/json'))
     @validate(track_id=str)
     def preview_url(self, request, track_id):
-        r = requests.get(f"https://open.spotify.com/embed/track/{track_id}")
-        dom = BeautifulSoup(r.content, features="html.parser")
-        preview_url = json.loads(unquote(dom.find(id="resource").text))["preview_url"]
+        r = urlopen(f"https://open.spotify.com/embed/track/{track_id}")
+        parser = SpotifyResourceParser()
+        parser.feed(r.read().decode())
+        resource = unquote(parser.resource)
+        preview_url = json.loads(resource)["preview_url"]
         return ControllerResponse(json.dumps({"preview_url": preview_url}))
 
 
