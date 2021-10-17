@@ -38,6 +38,7 @@ SORTABLE_FIELDS = (
     'tempo',
 )
 DISPLAYED_FIELDS = SEARCHABLE_FIELDS + SORTABLE_FIELDS
+BASE_HUE = 210
 
 def css():
     return reset + c.rs(
@@ -53,8 +54,8 @@ def css():
                 ),
             ),
             c.r("tr",
-                c.ar(".even", background_color="hsl(210, 80%, 80%)"),
-                c.ar(".odd", background_color="hsl(210, 80%, 90%)"),
+                c.ar(".even", background_color=f"hsl({BASE_HUE}, 80%, 80%)"),
+                c.ar(".odd", background_color=f"hsl({BASE_HUE}, 80%, 90%)"),
                 c.r("td, th",
                     c.ds(
                         padding="10px",
@@ -163,7 +164,7 @@ def js():
                                     field_elem.setAttribute("title", value)
                                     if sortable_fields.includes(field):
                                         scaled_value: let = scale_value(field, value, 20)
-                                        field_elem.setAttribute("style", f"background-color: hsl(210, 80%, {100 - scaled_value}%)")
+                                        field_elem.setAttribute("style", f"background-color: hsl({base_hue}, 80%, {100 - scaled_value}%)")
                                 if field == "preview":
                                     for link in field_elem.childNodes:
                                         if link.nodeName == "A":
@@ -410,6 +411,7 @@ class MusicController(Controller):
     def js_src(self, request):
         if self.js is None:
             context = dict(
+                base_hue=BASE_HUE,
                 max_tempo=self.max_tempo,
                 max_time=self.max_time,
                 displayed_fields=DISPLAYED_FIELDS,
