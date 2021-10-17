@@ -6,7 +6,7 @@
     %title SpotEx
 
   %body
-    %form#controls(action:"/json")
+    %form#controls(action:"/json" method:"POST")
       .header
         ==form.search.render
         %button#prev Previous
@@ -37,7 +37,6 @@
           %td(class:"=field.name")!
     %audio#preview.hidden(autoplay:"")!
 
-    %script(src:"/static/vendor/jquery-3.6.0.min.js")!
     %script(src:"/js_src")!
     %script
-      js().setup(jQuery)
+      js().setup()

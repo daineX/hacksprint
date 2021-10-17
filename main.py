@@ -86,48 +86,53 @@ def time_to_int(value):
 def js():
     exports = {}
 
-    def setup(jq):
-        search: let = jq("#search")
-        controls: let = jq("#controls")
-        songs: let = jq("#songs")
-        template: let = jq("#template")
-        page: let = jq("#page")
-        preview: let = document.getElementById("preview")
+    def setup():
+        search: let = select("search")
+        controls: let = select("#controls")
+        songs: let = select("#songs")
+        template: let = select("#template")
+        page: let = select("#page")
+        preview: let = select("#preview")
         min_page = 1
         max_page = 1
 
-        @jq("#reset").click
-        def reset():
-            jq(".sort").val(0)
+        @select("#reset").on("click")
+        def reset(target, evt):
+            evt.preventDefault()
+            selectAll(".sort").val(0)
             page.val(1)
-            search.val("")
-            controls.change()
+            select("#search").val("")
+            controls.trigger("change")
 
-        @jq("#prev").click
-        def previous():
-            previous_page: let = int(page.val()) - 1
+        @select("#prev").on("click")
+        def previous(target, evt):
+            evt.preventDefault()
+            previous_page: let = int(page.value) - 1
             if previous_page >= min_page:
                 page.val(previous_page)
-            controls.change()
+            controls.trigger("change")
 
-        @jq("#next").click
-        def next():
-            next_page: let = int(page.val()) + 1
+        @select("#next").on("click")
+        def next(target, evt):
+            evt.preventDefault()
+            next_page: let = int(page.value) + 1
             if next_page <= max_page:
                 page.val(next_page)
-            controls.change()
+            controls.trigger("change")
 
         def preview_ended(evt):
-            jq("#songs td.preview a").text("▶").removeClass("playing")
-        jq("#preview").on("ended", preview_ended)
+            playing: let = select("#songs td.preview a.playing")
+            playing.classList.remove("playing")
+            playing.textContent = "▶"
+            preview.setAttribute("data-track-id", "")
+        preview.on("ended", preview_ended)
 
-        @controls.change
-        def update(evt):
+        @controls.on("change")
+        def update(target, evt):
             evt.preventDefault()
-            form: let = jq(this)
-            url: let = form.prop("action")
-
-            preview.pause()
+            url: let = controls.getAttribute("action")
+            ajax: let | new = XMLHttpRequest()
+            formData: let | new = FormData(select("form#controls"))
 
             def scale_value(field, value, target):
                 scaling_factor = 100
@@ -138,78 +143,96 @@ def js():
                     scaling_factor = max_tempo
                 return value * target / scaling_factor
 
-            def ajaxSuccess(data):
-                songs.empty()
+            def ajaxSuccess(evt):
+                data: let = JSON.parse(ajax.responseText)
+                pause: let = True
+                currently_playing: let = preview.getAttribute("data-track-id")
+
+                songs.innerHTML = ''
+
                 idx: let = 0
                 for song in data["songs"]:
-                    row = template.clone()
-                    for field in displayed_fields:
-                        value: let = song[field]
-                        field_elem = row.find("." + field)
-                        field_elem.text(value)
-                        field_elem.attr("title", value)
-                        if sortable_fields.includes(field):
-                            scaled_value: let = scale_value(field, value, 20)
-                            field_elem.css("background-color",
-                                        f"hsl(210, 80%, {100 - scaled_value}%)")
-                    row.find(".preview a").data("track-id", song["spotify_track_id"])
-                    row.removeClass("hidden")
-                    row.removeAttr("id")
+                    track_id: let = song["spotify_track_id"]
+                    row = template.cloneNode(True)
+                    for field_elem in row.childNodes:
+                        if field_elem.nodeName == "TD":
+                            for field in field_elem.classList:
+                                if displayed_fields.includes(field):
+                                    value: let = song[field]
+                                    field_elem.textContent = value
+                                    field_elem.setAttribute("title", value)
+                                    if sortable_fields.includes(field):
+                                        scaled_value: let = scale_value(field, value, 20)
+                                        field_elem.setAttribute("style", f"background-color: hsl(210, 80%, {100 - scaled_value}%)")
+                                if field == "preview":
+                                    for link in field_elem.childNodes:
+                                        if link.nodeName == "A":
+                                            link.setAttribute("data-track-id", track_id)
+                                            if track_id == currently_playing:
+                                                pause = False
+                                                link.textContent = "⏸︎"
+                    row.classList.remove("hidden")
+                    row.removeAttribute("id")
                     if idx % 2 == 0:
-                        row.addClass("even")
+                        row.classList.add("even")
                     else:
-                        row.addClass("odd")
-                    row.appendTo(songs)
+                        row.classList.add("odd")
+                    songs.appendChild(row)
                     idx += 1
-                max_page = data["max_page"]
-                page.attr("max", max_page)
-                if page.val() > max_page:
-                    page.val(max_page)
-
-                @jq("#songs td.preview a").click
-                def toggle_preview(evt):
-                    evt.preventDefault()
-                    link: let = jq(this)
+                if pause:
                     preview.pause()
-                    jq("#songs td.preview a").text("▶")
-                    if link.hasClass("playing"):
-                        link.removeClass("playing")
+                max_page = data["max_page"]
+                page.setAttribute("max", max_page)
+                if not page.value:
+                    page.value = 1
+                elif page.value > max_page:
+                    page.value = max_page
+
+                @selectAll("#songs td.preview a").on("click")
+                def toggle_preview(target, evt):
+                    evt.preventDefault()
+                    link: let = target
+                    preview.pause()
+                    for elem in selectAll("#songs td.preview a"):
+                        elem.textContent = "▶"
+                    if link.classList.contains("playing"):
+                        link.classList.remove("playing")
+                        preview.setAttribute("data-track-id", "")
                     else:
-                        track_id: let = link.data("track-id")
+                        track_id: let = link.getAttribute("data-track-id")
 
-                        def previewSuccess(data):
+                        ajax: let | new = XMLHttpRequest()
+
+                        def previewSuccess(evt):
+                            data = JSON.parse(ajax.responseText)
                             preview.setAttribute("src", data["preview_url"])
+                            preview.setAttribute("data-track-id", track_id)
                             preview.volume = 0.6
-                            link.text("⏸︎")
-                            link.addClass("playing")
+                            link.textContent = "⏸︎"
+                            link.classList.add("playing")
 
-                        jq.ajax({
-                            "url": "/preview_url",
-                            "data": {"track_id": track_id},
-                            success: previewSuccess,
-                        })
+                        ajax.onload = previewSuccess
+                        ajax.open("GET", f"/preview_url?track_id={track_id}")
+                        ajax.send()
                     return False
 
-                @jq("td.album, td.artist, td.song").click
-                def search_shortcut():
-                    search_text: let = jq(this).text()
-                    search.val(search_text)
-                    controls.change()
+                @selectAll("td.album, td.artist, td.song").on("click")
+                def search_shortcut(target, evt):
+                    search_text: let = target.textContent
+                    select("#search").value = search_text
+                    controls.trigger("change")
 
-            jq.ajax({
-                "url": url,
-                "dataType": "json",
-                "data": form.serializeArray(),
-                "success": ajaxSuccess,
-            })
+            ajax.onload = ajaxSuccess
+            ajax.open("POST", "/json")
+            ajax.send(formData)
             return False
 
-        @controls.submit
-        def submit(evt):
+        @controls.on("submit")
+        def submit(target, evt):
             evt.preventDefault()
             return False
 
-        controls.change()
+        controls.trigger("change")
 
     exports.setup = setup
     return exports
@@ -337,7 +360,7 @@ class MusicController(Controller):
     @expose
     @inject_header(('Content-Type', 'application/json'))
     def json(self, request):
-        form = FilterForm(request.GET)
+        form = FilterForm(request.POST)
         sort_key = lambda song: song["song"].upper()
         reverse = False
         page = 1
